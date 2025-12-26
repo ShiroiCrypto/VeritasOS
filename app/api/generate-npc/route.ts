@@ -34,10 +34,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Usar gemini-1.5-flash (mais rápido) ou gemini-1.5-pro (mais poderoso)
-    // Pode ser configurado via variável de ambiente GEMINI_MODEL
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-    const model = genAI.getGenerativeModel({ model: modelName });
+    // Modelos disponíveis na API do Google Gemini (tentar em ordem)
+    const modelOptions = process.env.GEMINI_MODEL 
+      ? [process.env.GEMINI_MODEL]
+      : [
+          'gemini-1.5-flash-latest',
+          'gemini-1.5-pro-latest',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-pro',
+        ];
 
     const prompt = `Você é um assistente especializado em criar personagens para o RPG Ordem Paranormal.
 
@@ -59,9 +65,39 @@ Retorne APENAS um JSON válido com a seguinte estrutura (sem markdown, sem códi
 
 IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem texto adicional.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Tentar cada modelo até encontrar um que funcione
+    let text = '';
+    let lastError = null;
+    
+    for (const modelName of modelOptions) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        text = response.text();
+        console.log(`Modelo usado com sucesso: ${modelName}`);
+        break; // Sucesso, sair do loop
+      } catch (error: any) {
+        lastError = error;
+        // Se for erro 404 (modelo não encontrado), tentar próximo
+        if (error?.status === 404) {
+          console.log(`Modelo ${modelName} não encontrado, tentando próximo...`);
+          continue;
+        }
+        // Se for outro erro (401, 403, etc), propagar
+        throw error;
+      }
+    }
+    
+    // Se nenhum modelo funcionou
+    if (!text && lastError) {
+      return NextResponse.json(
+        { 
+          error: `Nenhum modelo disponível. Modelos testados: ${modelOptions.join(', ')}. Verifique sua chave de API e tente configurar GEMINI_MODEL no .env com um modelo específico.` 
+        },
+        { status: 500 }
+      );
+    }
 
     // Tentar extrair JSON do texto retornado
     let npcData: NPCData;
