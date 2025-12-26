@@ -6,15 +6,14 @@
 
 ---
 
-## 🛠️ Funcionalidades Planejadas
+## 🛠️ Funcionalidades Implementadas
 
-* **Gerador de NPCs com IA:** Integração nativa com Google Gemini para criar personagens secundários com história, atributos, perícias e segredos obscuros.
-* **Fichas de Agente Online:** Gerenciamento completo de NEX, Atributos, PV, PE e Sanidade.
-* **Sistema de Tokens:** Acesso seguro para jogadores via códigos gerados pelo Mestre (sem necessidade de contas complexas).
-* **Dossiê de Investigação:** * **Notas Compartilhadas:** Mural de evidências visível para toda a equipe.
-    * **Diário de Agente:** Notas individuais secretas entre o jogador e o mestre.
-* **Rolador de Dados Paranormal:** Lógica customizada (pega o maior valor entre os dados rolados) com animações de interface.
-* **Estética de Terror:** Interface "Dark-Industrial" com efeitos de glitch, flicker e ruído visual via CSS.
+* ✅ **Configuração Completa:** Next.js 14, Tailwind CSS, TypeScript
+* ✅ **Banco de Dados SQLite:** Estrutura completa com tabelas (characters, npcs, notes, tables)
+* ✅ **Estética de Terror:** Interface "Terminal/Dossiê" com efeitos de glitch, scanlines e paleta de cores temática
+* ✅ **Sistema de Rolagem:** Lógica customizada (Xd20, pega o maior valor) com animações
+* ✅ **Gerador de NPCs com IA:** Integração com Google Gemini para criar personagens completos
+* ✅ **Layout Base:** Sidebar de navegação e layout terminal funcional
 
 ## 🚀 Tech Stack
 
@@ -22,33 +21,89 @@
 * **Estilização:** [Tailwind CSS](https://tailwindcss.com/)
 * **Banco de Dados:** [Better-SQLite3](https://github.com/WiseLibs/better-sqlite3) (Local e veloz)
 * **IA:** [Google Gemini API](https://ai.google.dev/)
-* **Deployment:** [Discloud](https://discloud.com/)
+* **Ícones:** [Lucide React](https://lucide.dev/)
 
 ## 📦 Instalação e Configuração
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone [https://github.com/ShiroiCrypto/VeritasOS.git](https://github.com/ShiroiCrypto/VeritasOS.git)
-    ```
-2.  **Instale as dependências:**
-    ```bash
-    npm install
-    ```
-3.  **Variáveis de Ambiente:**
-    Crie um arquivo `.env` na raiz e adicione sua chave:
-    ```env
-    GEMINI_API_KEY=sua_chave_aqui
-    ```
-4.  **Execute o projeto:**
-    ```bash
-    npm run dev
-    ```
+Consulte o arquivo [SETUP.md](./SETUP.md) para instruções detalhadas de instalação.
 
-## 🌐 Hospedagem (Discloud)
+### Quick Start
 
-O projeto está configurado para deploy na Discloud. Certifique-se de que o arquivo `discloud.config` esteja presente na raiz com as especificações de RAM e versão do Node.
+1. **Instale as dependências:**
+   ```bash
+   npm install
+   ```
 
----
+2. **Configure as variáveis de ambiente:**
+   Crie um arquivo `.env` na raiz:
+   ```env
+   GEMINI_API_KEY=sua_chave_aqui
+   ```
+
+3. **Execute as migrações:**
+   ```bash
+   npm run db:migrate
+   ```
+
+4. **Inicie o servidor:**
+   ```bash
+   npm run dev
+   ```
+
+Acesse `http://localhost:3000` no navegador.
+
+## 🎨 Características Visuais
+
+- **Paleta de Cores:**
+  - Fundo: `#050505` (preto profundo)
+  - Acentos: `#990000` (vermelho sangue)
+  - Texto secundário: `#666666` (cinza)
+
+- **Efeitos:**
+  - Scanlines animadas no fundo
+  - Efeito glitch em títulos e estados de erro
+  - Bordas com brilho sutil
+  - Cards estilo "dossiê" com efeito de profundidade
+
+## 📁 Estrutura do Projeto
+
+```
+VeritasOS/
+├── app/
+│   ├── api/
+│   │   └── generate-npc/    # API para gerar NPCs com IA
+│   ├── master/              # Dashboard do Mestre
+│   │   ├── recruitment/     # Gerador de NPCs
+│   │   ├── investigation/  # Mural de investigação
+│   │   └── monitor/         # Monitor de mesa
+│   ├── player/              # Dashboard do Jogador
+│   │   └── diary/           # Diário de agente
+│   └── globals.css          # Estilos globais
+├── components/
+│   ├── Sidebar.tsx          # Navegação lateral
+│   ├── TerminalLayout.tsx   # Layout base
+│   └── DiceRoller.tsx       # Componente de rolagem
+├── lib/
+│   ├── db.ts                # Conexão SQLite
+│   └── dice.ts              # Lógica de rolagem
+└── scripts/
+    └── migrate.js           # Script de migração
+```
+
+## 🎲 Sistema de Rolagem
+
+O sistema implementa a mecânica de Ordem Paranormal:
+- Rola **X dados de 20** onde X é o valor do atributo
+- Retorna o **maior valor** entre as rolagens
+- Interface visual com animações e feedback
+
+## 🤖 Gerador de NPCs
+
+A integração com Google Gemini permite criar NPCs completos com:
+- Nome e Origem
+- NEX e Atributos (AGI, FOR, INT, PRE, VIG)
+- Perícia de destaque
+- Segredo obscuro relacionado ao paranormal
 
 ## 🛡️ Licença
 

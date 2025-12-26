@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-terror-bg text-terror-text font-terminal;
+    background-image: 
+      repeating-linear-gradient(
+        0deg,
+        rgba(153, 0, 0, 0.03) 0px,
+        rgba(153, 0, 0, 0.03) 1px,
+        transparent 1px,
+        transparent 2px
+      );
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(153, 0, 0, 0.02) 50%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 1;
+    animation: scanline 8s linear infinite;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(153, 0, 0, 0.05) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(153, 0, 0, 0.05) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+@layer components {
+  .glitch-text {
+    @apply relative;
+    text-shadow: 
+      2px 0 #990000,
+      -2px 0 #990000,
+      0 2px #990000,
+      0 -2px #990000;
+  }
+
+  .glitch-text:hover {
+    animation: glitch 0.3s infinite;
+  }
+
+  .terminal-border {
+    @apply border border-terror-accent/30;
+    box-shadow: 
+      0 0 10px rgba(153, 0, 0, 0.2),
+      inset 0 0 10px rgba(153, 0, 0, 0.1);
+  }
+
+  .dossier-card {
+    @apply terminal-border bg-terror-bg/80 backdrop-blur-sm p-4;
+    position: relative;
+  }
+
+  .dossier-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      #990000,
+      transparent
+    );
+  }
+}
+
+@layer utilities {
+  .text-glow {
+    text-shadow: 0 0 10px rgba(153, 0, 0, 0.5);
+  }
+}
+
