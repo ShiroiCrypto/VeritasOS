@@ -34,7 +34,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Usar gemini-1.5-flash (mais rápido) ou gemini-1.5-pro (mais poderoso)
+    // Pode ser configurado via variável de ambiente GEMINI_MODEL
+    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const model = genAI.getGenerativeModel({ model: modelName });
 
     const prompt = `Você é um assistente especializado em criar personagens para o RPG Ordem Paranormal.
 
@@ -96,10 +99,27 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem texto ad
     }
 
     return NextResponse.json(npcData);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro ao gerar NPC:', error);
+    
+    // Mensagens de erro mais específicas
+    if (error?.status === 404) {
+      return NextResponse.json(
+        { error: 'Modelo não encontrado. Verifique se está usando um modelo válido (gemini-1.5-flash ou gemini-1.5-pro)' },
+        { status: 500 }
+      );
+    }
+    
+    if (error?.status === 401 || error?.status === 403) {
+      return NextResponse.json(
+        { error: 'Chave de API inválida ou sem permissão' },
+        { status: 500 }
+      );
+    }
+    
+    const errorMessage = error?.message || 'Erro interno do servidor';
     return NextResponse.json(
-      { error: 'Erro interno do servidor' },
+      { error: `Erro ao gerar NPC: ${errorMessage}` },
       { status: 500 }
     );
   }
