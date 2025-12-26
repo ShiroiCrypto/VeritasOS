@@ -38,3 +38,7 @@ next-env.d.ts
 # database
 /data/*.db
 /data/*.db-journal
+
+# documentos internos de comunicação
+STATUS_PROJETO.md
+PROXIMOS_PASSOS.md

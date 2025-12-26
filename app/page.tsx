@@ -21,10 +21,10 @@ export default function HomePage() {
             Acesso do Mestre
           </Link>
           <Link
-            href="/player"
+            href="/login"
             className="terminal-border px-6 py-3 text-terror-text hover:bg-terror-accent/20 transition-colors"
           >
-            Acesso do Jogador
+            Login
           </Link>
         </div>
       </div>

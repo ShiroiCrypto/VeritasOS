@@ -8,7 +8,9 @@ import {
   FileText, 
   Eye, 
   BookOpen,
-  Home
+  Home,
+  Settings,
+  UserCog
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -20,6 +22,8 @@ export default function Sidebar({ mode }: SidebarProps) {
 
   const masterLinks = [
     { href: '/master', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/master/setup', label: 'Configuração', icon: Settings },
+    { href: '/master/users', label: 'Usuários', icon: UserCog },
     { href: '/master/recruitment', label: 'Recrutamento', icon: Users },
     { href: '/master/investigation', label: 'Mural de Investigação', icon: FileText },
     { href: '/master/monitor', label: 'Monitor de Mesa', icon: Eye },

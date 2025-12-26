@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import db from '@/lib/db';
+import { cleanToken } from '@/lib/tokens';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Configurar cliente Gemini
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 interface NPCData {
   name: string;
@@ -18,11 +22,18 @@ interface NPCData {
 
 export async function POST(request: NextRequest) {
   try {
-    const { theme } = await request.json();
+    const { theme, table_token } = await request.json();
 
     if (!theme || typeof theme !== 'string') {
       return NextResponse.json(
         { error: 'Tema é obrigatório' },
+        { status: 400 }
+      );
+    }
+
+    if (!table_token) {
+      return NextResponse.json(
+        { error: 'table_token é obrigatório' },
         { status: 400 }
       );
     }
@@ -34,10 +45,52 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Buscar contexto da mesa e notas do mural
+    const cleanedTableToken = cleanToken(table_token);
+
+    // Buscar descrição da mesa
+    const table = db.prepare(`
+      SELECT description, name
+      FROM tables
+      WHERE token = ?
+    `).get(cleanedTableToken) as any;
+
+    // Buscar últimas 5 notas compartilhadas do mural
+    const notes = db.prepare(`
+      SELECT title
+      FROM notes
+      WHERE table_token = ? AND type = 'shared'
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all(cleanedTableToken) as any[];
+
+    // Construir contexto
+    let contextParts: string[] = [];
+    
+    if (table?.description) {
+      contextParts.push(`Cenário da Mesa: ${table.description}`);
+    }
+    
+    if (table?.name) {
+      contextParts.push(`Nome da Mesa: ${table.name}`);
+    }
+
+    if (notes.length > 0) {
+      const notesTitles = notes.map(n => n.title).join(', ');
+      contextParts.push(`Descobertas Atuais do Mural de Investigação: ${notesTitles}`);
+    }
+
+    const context = contextParts.length > 0 
+      ? contextParts.join('\n')
+      : 'Sem contexto adicional disponível.';
+
     // Modelos disponíveis na API do Google Gemini (tentar em ordem)
+    // Priorizando modelos mais recentes primeiro
     const modelOptions = process.env.GEMINI_MODEL 
       ? [process.env.GEMINI_MODEL]
       : [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash-exp',
           'gemini-1.5-flash-latest',
           'gemini-1.5-pro-latest',
           'gemini-1.5-flash',
@@ -47,7 +100,12 @@ export async function POST(request: NextRequest) {
 
     const prompt = `Você é um assistente especializado em criar personagens para o RPG Ordem Paranormal.
 
-Crie um NPC (personagem não-jogador) baseado no seguinte tema: "${theme}"
+CONTEXTO DA MESA:
+${context}
+
+TEMA SOLICITADO: "${theme}"
+
+Com base no cenário da mesa e nas descobertas atuais do Mural de Investigação, gere um NPC que se encaixe organicamente nesta história. O NPC deve fazer sentido no contexto fornecido e potencialmente se relacionar com as investigações em andamento.
 
 Retorne APENAS um JSON válido com a seguinte estrutura (sem markdown, sem código, apenas o JSON puro):
 {
@@ -141,7 +199,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem texto ad
     // Mensagens de erro mais específicas
     if (error?.status === 404) {
       return NextResponse.json(
-        { error: 'Modelo não encontrado. Verifique se está usando um modelo válido (gemini-1.5-flash ou gemini-1.5-pro)' },
+        { error: 'Modelo não encontrado. Tente configurar GEMINI_MODEL=gemini-2.5-flash no .env ou verifique os modelos disponíveis na sua conta.' },
         { status: 500 }
       );
     }
