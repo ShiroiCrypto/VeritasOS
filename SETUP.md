@@ -20,7 +20,12 @@ Crie um arquivo `.env` na raiz do projeto:
 
 ```env
 GEMINI_API_KEY=sua_chave_aqui
+GEMINI_MODEL=gemini-1.5-flash
 ```
+
+**Modelos disponíveis:**
+- `gemini-1.5-flash` (padrão, mais rápido)
+- `gemini-1.5-pro` (mais poderoso, melhor qualidade)
 
 Para obter uma chave da API do Google Gemini:
 1. Acesse [Google AI Studio](https://makersuite.google.com/app/apikey)
