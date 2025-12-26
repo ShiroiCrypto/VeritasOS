@@ -1,5 +1,6 @@
 import TerminalLayout from '@/components/TerminalLayout';
 import { LayoutDashboard } from 'lucide-react';
+import NpcList from '@/components/NpcList';
 
 export default function MasterDashboard() {
   return (
@@ -12,7 +13,7 @@ export default function MasterDashboard() {
           </h1>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <div className="dossier-card">
             <h3 className="text-terror-accent font-bold mb-2">Recrutamento</h3>
             <p className="text-terror-text-secondary text-sm">
@@ -34,6 +35,8 @@ export default function MasterDashboard() {
             </p>
           </div>
         </div>
+
+        <NpcList />
       </div>
     </TerminalLayout>
   );

@@ -22,6 +22,9 @@ export default function RecruitmentPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedNPC, setGeneratedNPC] = useState<NPC | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!theme.trim()) {
@@ -34,12 +37,25 @@ export default function RecruitmentPage() {
     setGeneratedNPC(null);
 
     try {
+      // Buscar table_token do localStorage
+      const tableToken = typeof window !== 'undefined' 
+        ? localStorage.getItem('veritas_table_token') 
+        : null;
+
+      if (!tableToken) {
+        setError('Token da mesa não encontrado. Configure a mesa primeiro.');
+        return;
+      }
+
       const response = await fetch('/api/generate-npc', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ theme }),
+        body: JSON.stringify({ 
+          theme,
+          table_token: tableToken,
+        }),
       });
 
       if (!response.ok) {
@@ -59,8 +75,38 @@ export default function RecruitmentPage() {
   const handleSave = async () => {
     if (!generatedNPC) return;
 
-    // TODO: Implementar salvamento no banco de dados
-    alert('Funcionalidade de salvamento será implementada em breve!');
+    setIsSaving(true);
+    setSaveError(null);
+    setSaved(false);
+
+    try {
+      const response = await fetch('/api/npcs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...generatedNPC,
+          table_token: localStorage.getItem('veritas_table_token') || 'PROJETO_GAIA', // Fallback temporário
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Erro ao salvar NPC');
+      }
+
+      setSaved(true);
+      
+      // Resetar o estado após 2 segundos para permitir novo salvamento se necessário
+      setTimeout(() => {
+        setSaved(false);
+      }, 2000);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -109,19 +155,43 @@ export default function RecruitmentPage() {
         </div>
 
         {generatedNPC && (
-          <div className="dossier-card">
+          <div 
+            className={`dossier-card transition-all duration-300 ${
+              saved 
+                ? 'animate-glitch border-terror-accent shadow-[0_0_20px_rgba(153,0,0,0.5)]' 
+                : ''
+            }`}
+            style={saved ? { 
+              boxShadow: '0 0 30px rgba(153, 0, 0, 0.8), inset 0 0 30px rgba(153, 0, 0, 0.2)',
+              animation: 'glitch 0.3s ease-in-out'
+            } : {}}
+          >
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-terror-accent font-bold text-xl">
                 {generatedNPC.name}
               </h2>
-              <button
-                onClick={handleSave}
-                className="terminal-border px-4 py-2 text-terror-text hover:bg-terror-accent/20 transition-colors flex items-center gap-2"
-              >
-                <Save size={18} />
-                Salvar no Dossiê
-              </button>
+              <div className="flex items-center gap-2">
+                {saved && (
+                  <span className="text-terror-accent text-sm text-glow animate-flicker">
+                    ARQUIVADO
+                  </span>
+                )}
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving || saved}
+                  className="terminal-border px-4 py-2 text-terror-text hover:bg-terror-accent/20 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Save size={18} />
+                  {isSaving ? 'Arquivando...' : saved ? 'Arquivado' : 'Salvar no Dossiê'}
+                </button>
+              </div>
             </div>
+
+            {saveError && (
+              <div className="mb-4 p-3 bg-terror-accent/20 terminal-border">
+                <p className="text-terror-accent text-sm">{saveError}</p>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>

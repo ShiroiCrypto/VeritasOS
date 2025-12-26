@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import db from '@/lib/db';
+import { cleanToken } from '@/lib/tokens';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+// Configurar cliente Gemini
+const apiKey = process.env.GEMINI_API_KEY || '';
+const genAI = new GoogleGenerativeAI(apiKey);
 
 interface NPCData {
   name: string;
@@ -18,11 +22,18 @@ interface NPCData {
 
 export async function POST(request: NextRequest) {
   try {
-    const { theme } = await request.json();
+    const { theme, table_token } = await request.json();
 
     if (!theme || typeof theme !== 'string') {
       return NextResponse.json(
         { error: 'Tema é obrigatório' },
+        { status: 400 }
+      );
+    }
+
+    if (!table_token) {
+      return NextResponse.json(
+        { error: 'table_token é obrigatório' },
         { status: 400 }
       );
     }
@@ -34,14 +45,82 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Usar gemini-1.5-flash (mais rápido) ou gemini-1.5-pro (mais poderoso)
-    // Pode ser configurado via variável de ambiente GEMINI_MODEL
-    const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-    const model = genAI.getGenerativeModel({ model: modelName });
+    // Buscar contexto da mesa e notas do mural
+    const cleanedTableToken = cleanToken(table_token);
 
-    const prompt = `Você é um assistente especializado em criar personagens para o RPG Ordem Paranormal.
+    // Buscar descrição da mesa
+    const table = db.prepare(`
+      SELECT description, name
+      FROM tables
+      WHERE token = ?
+    `).get(cleanedTableToken) as any;
 
-Crie um NPC (personagem não-jogador) baseado no seguinte tema: "${theme}"
+    // Buscar últimas 5 notas compartilhadas do mural (com conteúdo completo)
+    const notes = db.prepare(`
+      SELECT title, content
+      FROM notes
+      WHERE table_token = ? AND type = 'shared'
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all(cleanedTableToken) as any[];
+
+    // Construir contexto onisciente
+    let contextParts: string[] = [];
+    
+    if (table?.name) {
+      contextParts.push(`MESA: ${table.name}`);
+    }
+    
+    if (table?.description) {
+      contextParts.push(`CENÁRIO DA CAMPANHA:\n${table.description}`);
+    }
+
+    if (notes.length > 0) {
+      contextParts.push(`\nMURAL DE INVESTIGAÇÃO - DESCOBERTAS ATUAIS:`);
+      notes.forEach((note, index) => {
+        contextParts.push(`\n[${index + 1}] ${note.title}`);
+        if (note.content) {
+          contextParts.push(`   ${note.content.substring(0, 200)}${note.content.length > 200 ? '...' : ''}`);
+        }
+      });
+    } else {
+      contextParts.push(`\nMURAL DE INVESTIGAÇÃO: Nenhuma descoberta registrada ainda.`);
+    }
+
+    const context = contextParts.length > 0 
+      ? contextParts.join('\n')
+      : 'Sem contexto adicional disponível.';
+
+    // Modelos disponíveis na API do Google Gemini (tentar em ordem)
+    // Priorizando modelos mais recentes primeiro
+    const modelOptions = process.env.GEMINI_MODEL 
+      ? [process.env.GEMINI_MODEL]
+      : [
+          'gemini-2.5-flash',
+          'gemini-2.0-flash-exp',
+          'gemini-1.5-flash-latest',
+          'gemini-1.5-pro-latest',
+          'gemini-1.5-flash',
+          'gemini-1.5-pro',
+          'gemini-pro',
+        ];
+
+    const prompt = `Você é um assistente ONISCIENTE especializado em criar personagens para o RPG Ordem Paranormal. Você tem acesso completo ao contexto da campanha.
+
+═══════════════════════════════════════════════════════════
+CONTEXTO COMPLETO DA CAMPANHA (ONISCIÊNCIA ATIVADA):
+═══════════════════════════════════════════════════════════
+${context}
+═══════════════════════════════════════════════════════════
+
+TEMA SOLICITADO PELO MESTRE: "${theme}"
+
+INSTRUÇÕES CRÍTICAS:
+1. O NPC gerado DEVE ter conexões diretas e explícitas com as pistas e descobertas registradas no Mural de Investigação.
+2. O NPC deve fazer sentido no cenário descrito e potencialmente se relacionar com as investigações em andamento.
+3. O "Segredo Obscuro" do NPC deve estar relacionado às pistas do Mural ou ao cenário da campanha.
+4. Se houver descobertas no Mural, o NPC deve ter conhecimento, envolvimento ou conexão com essas descobertas.
+5. O NPC não deve ser genérico - deve ser específico e contextualizado para ESTA campanha.
 
 Retorne APENAS um JSON válido com a seguinte estrutura (sem markdown, sem código, apenas o JSON puro):
 {
@@ -59,9 +138,39 @@ Retorne APENAS um JSON válido com a seguinte estrutura (sem markdown, sem códi
 
 IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem texto adicional.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Tentar cada modelo até encontrar um que funcione
+    let text = '';
+    let lastError = null;
+    
+    for (const modelName of modelOptions) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        text = response.text();
+        console.log(`Modelo usado com sucesso: ${modelName}`);
+        break; // Sucesso, sair do loop
+      } catch (error: any) {
+        lastError = error;
+        // Se for erro 404 (modelo não encontrado), tentar próximo
+        if (error?.status === 404) {
+          console.log(`Modelo ${modelName} não encontrado, tentando próximo...`);
+          continue;
+        }
+        // Se for outro erro (401, 403, etc), propagar
+        throw error;
+      }
+    }
+    
+    // Se nenhum modelo funcionou
+    if (!text && lastError) {
+      return NextResponse.json(
+        { 
+          error: `Nenhum modelo disponível. Modelos testados: ${modelOptions.join(', ')}. Verifique sua chave de API e tente configurar GEMINI_MODEL no .env com um modelo específico.` 
+        },
+        { status: 500 }
+      );
+    }
 
     // Tentar extrair JSON do texto retornado
     let npcData: NPCData;
@@ -105,7 +214,7 @@ IMPORTANTE: Retorne APENAS o JSON, sem explicações, sem markdown, sem texto ad
     // Mensagens de erro mais específicas
     if (error?.status === 404) {
       return NextResponse.json(
-        { error: 'Modelo não encontrado. Verifique se está usando um modelo válido (gemini-1.5-flash ou gemini-1.5-pro)' },
+        { error: 'Modelo não encontrado. Tente configurar GEMINI_MODEL=gemini-2.5-flash no .env ou verifique os modelos disponíveis na sua conta.' },
         { status: 500 }
       );
     }
