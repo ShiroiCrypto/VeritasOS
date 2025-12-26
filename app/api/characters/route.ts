@@ -72,6 +72,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Buscar configuração da mesa para determinar modo de atributos
+    const tableConfig = db.prepare(`
+      SELECT attribute_mode FROM tables WHERE token = ?
+    `).get(cleanedTableToken) as any;
+
+    const attributeMode = tableConfig?.attribute_mode || 'ordem_paranormal';
+
+    // Definir atributos iniciais baseado no modo
+    let initialAttributes = {
+      agi: data.agi ?? 0,
+      for: data.for ?? 0,
+      int: data.int ?? 0,
+      pre: data.pre ?? 0,
+      vig: data.vig ?? 0,
+    };
+
+    // Se modo Ordem Paranormal e atributos não foram fornecidos, usar padrão (1 em tudo)
+    if (attributeMode === 'ordem_paranormal' && !data.agi && !data.for && !data.int && !data.pre && !data.vig) {
+      initialAttributes = {
+        agi: 1,
+        for: 1,
+        int: 1,
+        pre: 1,
+        vig: 1,
+      };
+    }
+
     // Inserir personagem
     const stmt = db.prepare(`
       INSERT INTO characters (
@@ -87,11 +114,11 @@ export async function POST(request: NextRequest) {
       data.name,
       data.origin || null,
       data.nex || 0,
-      data.agi || 0,
-      data.for || 0,
-      data.int || 0,
-      data.pre || 0,
-      data.vig || 0,
+      initialAttributes.agi,
+      initialAttributes.for,
+      initialAttributes.int,
+      initialAttributes.pre,
+      initialAttributes.vig,
       0, // pv
       0, // pe
       0  // san

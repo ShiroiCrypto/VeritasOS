@@ -53,7 +53,8 @@ export async function POST(request: NextRequest) {
     // Gerar token de sessão (simplificado - em produção usar JWT)
     const sessionToken = generateSessionToken();
 
-    return NextResponse.json({
+    // Criar resposta com cookie de sessão
+    const response = NextResponse.json({
       success: true,
       user: {
         id: user.id,
@@ -70,6 +71,17 @@ export async function POST(request: NextRequest) {
         character_name: t.character_name,
       })),
     });
+
+    // Definir cookie de sessão
+    response.cookies.set('veritas_session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 dias
+      path: '/',
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Erro na Membrana ao autenticar:', error);
     return NextResponse.json(

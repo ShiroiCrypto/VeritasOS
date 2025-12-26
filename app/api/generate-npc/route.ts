@@ -55,29 +55,36 @@ export async function POST(request: NextRequest) {
       WHERE token = ?
     `).get(cleanedTableToken) as any;
 
-    // Buscar últimas 5 notas compartilhadas do mural
+    // Buscar últimas 5 notas compartilhadas do mural (com conteúdo completo)
     const notes = db.prepare(`
-      SELECT title
+      SELECT title, content
       FROM notes
       WHERE table_token = ? AND type = 'shared'
       ORDER BY created_at DESC
       LIMIT 5
     `).all(cleanedTableToken) as any[];
 
-    // Construir contexto
+    // Construir contexto onisciente
     let contextParts: string[] = [];
     
-    if (table?.description) {
-      contextParts.push(`Cenário da Mesa: ${table.description}`);
+    if (table?.name) {
+      contextParts.push(`MESA: ${table.name}`);
     }
     
-    if (table?.name) {
-      contextParts.push(`Nome da Mesa: ${table.name}`);
+    if (table?.description) {
+      contextParts.push(`CENÁRIO DA CAMPANHA:\n${table.description}`);
     }
 
     if (notes.length > 0) {
-      const notesTitles = notes.map(n => n.title).join(', ');
-      contextParts.push(`Descobertas Atuais do Mural de Investigação: ${notesTitles}`);
+      contextParts.push(`\nMURAL DE INVESTIGAÇÃO - DESCOBERTAS ATUAIS:`);
+      notes.forEach((note, index) => {
+        contextParts.push(`\n[${index + 1}] ${note.title}`);
+        if (note.content) {
+          contextParts.push(`   ${note.content.substring(0, 200)}${note.content.length > 200 ? '...' : ''}`);
+        }
+      });
+    } else {
+      contextParts.push(`\nMURAL DE INVESTIGAÇÃO: Nenhuma descoberta registrada ainda.`);
     }
 
     const context = contextParts.length > 0 
@@ -98,14 +105,22 @@ export async function POST(request: NextRequest) {
           'gemini-pro',
         ];
 
-    const prompt = `Você é um assistente especializado em criar personagens para o RPG Ordem Paranormal.
+    const prompt = `Você é um assistente ONISCIENTE especializado em criar personagens para o RPG Ordem Paranormal. Você tem acesso completo ao contexto da campanha.
 
-CONTEXTO DA MESA:
+═══════════════════════════════════════════════════════════
+CONTEXTO COMPLETO DA CAMPANHA (ONISCIÊNCIA ATIVADA):
+═══════════════════════════════════════════════════════════
 ${context}
+═══════════════════════════════════════════════════════════
 
-TEMA SOLICITADO: "${theme}"
+TEMA SOLICITADO PELO MESTRE: "${theme}"
 
-Com base no cenário da mesa e nas descobertas atuais do Mural de Investigação, gere um NPC que se encaixe organicamente nesta história. O NPC deve fazer sentido no contexto fornecido e potencialmente se relacionar com as investigações em andamento.
+INSTRUÇÕES CRÍTICAS:
+1. O NPC gerado DEVE ter conexões diretas e explícitas com as pistas e descobertas registradas no Mural de Investigação.
+2. O NPC deve fazer sentido no cenário descrito e potencialmente se relacionar com as investigações em andamento.
+3. O "Segredo Obscuro" do NPC deve estar relacionado às pistas do Mural ou ao cenário da campanha.
+4. Se houver descobertas no Mural, o NPC deve ter conhecimento, envolvimento ou conexão com essas descobertas.
+5. O NPC não deve ser genérico - deve ser específico e contextualizado para ESTA campanha.
 
 Retorne APENAS um JSON válido com a seguinte estrutura (sem markdown, sem código, apenas o JSON puro):
 {

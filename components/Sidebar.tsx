@@ -10,7 +10,8 @@ import {
   BookOpen,
   Home,
   Settings,
-  UserCog
+  UserCog,
+  UserPlus
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ export default function Sidebar({ mode }: SidebarProps) {
     { href: '/master', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/master/setup', label: 'Configuração', icon: Settings },
     { href: '/master/users', label: 'Usuários', icon: UserCog },
+    { href: '/master/agents', label: 'Cadastrar Agente', icon: UserPlus },
     { href: '/master/recruitment', label: 'Recrutamento', icon: Users },
     { href: '/master/investigation', label: 'Mural de Investigação', icon: FileText },
     { href: '/master/monitor', label: 'Monitor de Mesa', icon: Eye },

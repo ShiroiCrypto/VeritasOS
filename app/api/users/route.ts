@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { hashPassword, verifyPassword, generateSessionToken } from '@/lib/auth';
+import { hashPassword } from '@/lib/auth';
+import '@/lib/init'; // Garantir inicialização
 
 interface UserCreateData {
   username: string;

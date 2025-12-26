@@ -45,7 +45,16 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Erro ao fazer login');
+        
+        // Mensagens temáticas de erro
+        let errorMessage = 'CREDENCIAIS INVÁLIDAS. O OLTRYS ESTÁ OBSERVANDO.';
+        if (data.error?.includes('não encontrado') || data.error?.includes('inválidas')) {
+          errorMessage = 'ACESSO NEGADO PELA MEMBRANA. Verifique suas credenciais.';
+        } else if (data.error) {
+          errorMessage = `ERRO NA MEMBRANA: ${data.error}`;
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -61,6 +70,25 @@ export default function LoginPage() {
       setUserId(data.user.id);
       setIsMaster(data.user.is_master);
       setTables(data.tables || []);
+
+      // Se for mestre, redirecionar direto para /master
+      if (data.user.is_master) {
+        router.push('/master');
+        return;
+      }
+
+      // Se for jogador e tiver apenas uma mesa, redirecionar direto
+      if (data.tables && data.tables.length === 1) {
+        const table = data.tables[0];
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('veritas_table_token', table.table_token);
+          localStorage.setItem('veritas_character_token', table.character_token);
+        }
+        router.push('/player');
+        return;
+      }
+
+      // Caso contrário, mostrar lista de mesas
       setIsLoggedIn(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -158,8 +186,14 @@ export default function LoginPage() {
         </div>
 
         <p className="text-terror-text-secondary text-sm mb-6">
-          Faça login para acessar suas mesas e personagens.
+          Acesse o terminal da Ordo Realitas. A verdade tem um preço.
         </p>
+        
+        <div className="mb-6 p-3 bg-terror-accent/10 terminal-border">
+          <p className="text-terror-text-secondary text-xs">
+            <strong>Conta Padrão:</strong> mestre / mestre123
+          </p>
+        </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
